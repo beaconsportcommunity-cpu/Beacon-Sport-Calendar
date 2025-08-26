@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beacon Sport Activity Calendar</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+        }
+        .calendar-day {
+            min-height: 120px;
+            border: 1px solid #e5e7eb;
+            position: relative;
+        }
+        .calendar-day.has-activity {
+            background-color: #dbeafe !important;
+            border-color: #3b82f6;
+        }
+        .calendar-horizontal {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .activity-item {
+            background-color: white;
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
+            border-left: 3px solid;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+        .activity-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin: 1px;
+        }
+        .past-activity {
+            opacity: 0.5;
+            background-color: #9ca3af !important;
+        }
+        .logo-container {
+            width: 120px;
+            height: 120px;
+            border: 2px dashed #d1d5db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            overflow: hidden;
+            border-radius: 8px;
+            background-color: #ffffff;
+        }
+        .logo-container:hover {
+            border-color: #3b82f6;
+            background-color: #f3f4f6;
+        }
+        .logo-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 6px;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Header -->
+    <header id="header" class="bg-white shadow-lg p-6">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <!-- Logo Section -->
+                <div class="logo-container" id="logoContainer" onclick="isAdmin && uploadLogo()">
+                    <div id="logoDisplay" class="text-gray-400 text-center">
+                        <svg class="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="text-xs">Upload Logo</span>
+                    </div>
+                </div>
+                
+                <!-- Title -->
+                <div>
+                    <h1 id="calendarTitle" class="text-3xl font-bold text-gray-800">Beacon Sport Activity Calendar</h1>
+                </div>
+            </div>
+            
+            <!-- Registration and Admin Login -->
+            <div class="flex items-center space-x-4">
+                <button id="registrationBtn" onclick="openRegistration()" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                    📝 Registration
+                </button>
+                <button id="adminLoginBtn" onclick="showAdminLogin()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Admin Login
+                </button>
+                <button id="adminLogoutBtn" onclick="adminLogout()" class="hidden px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                    Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Admin Panel -->
+    <div id="adminPanel" class="hidden bg-white shadow-md p-6 border-b">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">Admin Panel</h2>
+            
+            <!-- Admin Controls -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <!-- Header Customization -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-medium mb-3">Header Customization</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Background Color</label>
+                            <input type="color" id="headerColor" value="#ffffff" onchange="updateHeaderColor()" class="w-full h-10 rounded border">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Header Background Image</label>
+                            <div class="flex space-x-2">
+                                <button onclick="uploadHeaderImage()" class="flex-1 px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Upload Image</button>
+                                <button onclick="resetHeaderImage()" class="px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Reset</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Calendar Title</label>
+                            <input type="text" id="titleInput" value="Beacon Sport Activity Calendar" onchange="updateTitle()" class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Sport Registration Links</label>
+                            <div id="sportRegistrationLinks" class="space-y-2">
+                                <!-- Sport registration links will be populated here -->
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">Set registration form URLs for each sport</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sport Management -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-medium mb-3">Manage Sports</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Add New Sport</label>
+                            <div class="flex space-x-2">
+                                <input type="text" id="newSport" placeholder="Enter sport name" class="flex-1 px-3 py-2 border rounded-md">
+                                <button onclick="addNewSport()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Current Sports</label>
+                            <div id="sportsList" class="text-sm text-gray-600"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="font-medium mb-3">Quick Actions</h3>
+                    <div class="space-y-2">
+                        <button onclick="openActivityModal()" class="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Add New Activity</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto p-6">
+        <!-- Calendar Navigation -->
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <button onclick="previousMonth()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">← Previous</button>
+                <h2 id="currentMonth" class="text-2xl font-bold text-gray-800"></h2>
+                <button onclick="nextMonth()" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Next →</button>
+            </div>
+            
+            <!-- Calendar Grid -->
+            <div id="calendarGrid" class="calendar-grid">
+                <!-- Day Headers -->
+                <div class="font-semibold text-center py-2 bg-gray-100">Sun</div>
+                <div class="font-semibold text-center py-2 bg-gray-100">Mon</div>
+                <div class="font-semibold text-center py-2 bg-gray-100">Tue</div>
+                <div class="font-semibold text-center py-2 bg-gray-100">Wed</div>
+                <div class="font-semibold text-center py-2 bg-gray-100">Thu</div>
+                <div class="font-semibold text-center py-2 bg-gray-100">Fri</div>
+                <div class="font-semibold text-center py-2 bg-gray-100">Sat</div>
+            </div>
+        </div>
+
+        <!-- Activity Details -->
+        <div id="activityDetails" class="bg-white rounded-lg shadow-lg border p-6">
+            <h3 id="activitySectionTitle" class="text-2xl font-bold mb-6 text-gray-900">Today's Activities</h3>
+            <div id="todayActivities" class="space-y-4">
+                <p class="text-gray-600 text-lg">No activities scheduled for today.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Registration Modal -->
+    <div id="registrationModal" class="modal">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 class="text-xl font-semibold mb-4">Select Sport to Register</h3>
+            <div id="registrationOptions" class="space-y-3">
+                <!-- Registration options will be populated here -->
+            </div>
+            <div class="flex justify-end mt-6">
+                <button onclick="closeRegistrationModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminLoginModal" class="modal">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 class="text-xl font-semibold mb-4">Admin Login</h3>
+            <form id="adminLoginForm" onsubmit="adminLogin(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Username</label>
+                        <input type="text" id="adminUsername" required placeholder="Enter username" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Password</label>
+                        <input type="password" id="adminPassword" required placeholder="Enter password" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    
+                    <div id="loginError" class="hidden text-red-600 text-sm">
+                        Invalid username or password. Please try again.
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeAdminLogin()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Login</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Activity Modal -->
+    <div id="activityModal" class="modal">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 class="text-xl font-semibold mb-4">Add New Activity</h3>
+            <form id="activityForm" onsubmit="addActivity(event)">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Sport Type</label>
+                        <select id="sportType" required class="w-full px-3 py-2 border rounded-md">
+                            <option value="">Select Sport</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Date</label>
+                        <input type="date" id="activityDate" required class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Start Time</label>
+                            <input type="time" id="startTime" required class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">End Time</label>
+                            <input type="time" id="endTime" required class="w-full px-3 py-2 border rounded-md">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Location</label>
+                        <input type="text" id="location" required placeholder="Enter location" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Court</label>
+                        <input type="text" id="court" required placeholder="Enter court number/name" class="w-full px-3 py-2 border rounded-md">
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeActivityModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Add Activity</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Hidden file inputs -->
+    <input type="file" id="logoInput" accept="image/*" style="display: none;" onchange="handleLogoUpload(event)">
+    <input type="file" id="headerImageInput" accept="image/*" style="display: none;" onchange="handleHeaderImageUpload(event)">
+
+    <script>
+        // Global variables
+        let isAdmin = false;
+        let currentDate = new Date();
+        let activities = JSON.parse(localStorage.getItem('beaconActivities')) || [];
+        let sports = JSON.parse(localStorage.getItem('beaconSports')) || ['Futsal', 'Badminton', 'Pickleball', 'Volleyball', 'Netball (Women Only)'];
+        let logoData = localStorage.getItem('beaconLogo');
+        let headerColorData = localStorage.getItem('beaconHeaderColor') || '#ffffff';
+        let headerImageData = localStorage.getItem('beaconHeaderImage');
+        let titleData = localStorage.getItem('beaconTitle') || 'Beacon Sport Activity Calendar';
+        let sportRegistrationUrls = JSON.parse(localStorage.getItem('beaconSportRegistrationUrls')) || {};
+
+        // Sport colors mapping
+        const sportColors = {
+            'Futsal': '#10b981',
+            'Badminton': '#f59e0b',
+            'Pickleball': '#8b5cf6',
+            'Volleyball': '#ef4444',
+            'Netball (Women Only)': '#ec4899'
+        };
+
+        // Initialize app
+        function init() {
+            checkAdminSession();
+            
+            // Detect mobile device
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            // Add appropriate delay based on device type
+            const initDelay = isMobile ? 300 : 100;
+            
+            setTimeout(() => {
+                loadSavedData();
+                updateSportsList();
+                updateSportDropdown();
+                updateSportRegistrationLinks();
+                renderCalendar();
+                updateTodayActivities();
+                
+                // Debug: Check if logo data exists with detailed logging
+                const savedLogo = localStorage.getItem('beaconLogo');
+                const altLogo = localStorage.getItem('beacon_logo');
+                const backupLogo = localStorage.getItem('companyLogo');
+                const logoMeta = localStorage.getItem('beaconLogoMeta');
+                
+                console.log('Device type:', isMobile ? 'Mobile' : 'Desktop');
+                console.log('Main logo data:', savedLogo ? `Found (${savedLogo.length} chars)` : 'Not found');
+                console.log('Alt logo data:', altLogo ? `Found (${altLogo.length} chars)` : 'Not found');
+                console.log('Backup logo data:', backupLogo ? `Found (${backupLogo.length} chars)` : 'Not found');
+                console.log('Logo metadata:', logoMeta ? JSON.parse(logoMeta) : 'Not found');
+                
+                // Force logo reload on mobile devices after additional delay
+                if (isMobile && (savedLogo || altLogo || backupLogo)) {
+                    setTimeout(() => {
+                        console.log('Forcing logo reload for mobile device');
+                        const logoToUse = savedLogo || altLogo || backupLogo;
+                        if (logoToUse) {
+                            loadLogoWithRetry(logoToUse, 5); // More attempts for mobile
+                        }
+                    }, 500);
+                }
+            }, initDelay);
+        }
+
+        // Load saved data
+        function loadSavedData() {
+            // Force reload logo data from localStorage with multiple attempts
+            logoData = localStorage.getItem('beaconLogo');
+            
+            // Also try alternative storage keys for cross-device compatibility
+            if (!logoData) {
+                logoData = localStorage.getItem('beacon_logo') || localStorage.getItem('companyLogo');
+            }
+            
+            if (logoData && logoData.trim() !== '' && logoData.startsWith('data:image/')) {
+                // Multiple loading attempts for better mobile compatibility
+                loadLogoWithRetry(logoData, 3);
+            } else {
+                console.log('No valid logo data found');
+                showLogoUploadOption();
+            }
+            
+            document.getElementById('headerColor').value = headerColorData;
+            updateHeaderStyle();
+            document.getElementById('titleInput').value = titleData;
+            document.getElementById('calendarTitle').textContent = titleData;
+        }
+
+        // Load logo with retry mechanism
+        function loadLogoWithRetry(logoDataUrl, attempts) {
+            if (attempts <= 0) {
+                console.log('All logo loading attempts failed');
+                showLogoUploadOption();
+                return;
+            }
+
+            try {
+                const logoImg = new Image();
+                logoImg.onload = function() {
+                    // Image loaded successfully, display it
+                    const displayImg = document.createElement('img');
+                    displayImg.src = logoDataUrl;
+                    displayImg.alt = 'Company Logo';
+                    displayImg.className = 'w-full h-full object-contain rounded bg-white p-2';
+                    displayImg.style.maxWidth = '100%';
+                    displayImg.style.maxHeight = '100%';
+                    displayImg.style.display = 'block';
+                    
+                    // Ensure the container exists
+                    const logoDisplay = document.getElementById('logoDisplay');
+                    if (logoDisplay) {
+                        logoDisplay.innerHTML = '';
+                        logoDisplay.appendChild(displayImg);
+                        console.log('Logo loaded successfully on device');
+                    }
+                };
+                logoImg.onerror = function() {
+                    console.log(`Logo loading attempt ${4-attempts} failed, retrying...`);
+                    // Retry after a short delay
+                    setTimeout(() => {
+                        loadLogoWithRetry(logoDataUrl, attempts - 1);
+                    }, 500);
+                };
+                logoImg.src = logoDataUrl;
+            } catch (error) {
+                console.log('Error in logo loading attempt:', error);
+                setTimeout(() => {
+                    loadLogoWithRetry(logoDataUrl, attempts - 1);
+                }, 500);
+            }
+        }
+
+        // Show logo upload option
+        function showLogoUploadOption() {
+            const logoDisplay = document.getElementById('logoDisplay');
+            logoDisplay.innerHTML = `
+                <div class="text-gray-400 text-center">
+                    <svg class="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-xs">Upload Logo</span>
+                </div>
+            `;
+        }
+
+        // Update header style with color and image
+        function updateHeaderStyle() {
+            const header = document.getElementById('header');
+            header.style.backgroundColor = headerColorData;
+            
+            if (headerImageData) {
+                header.style.backgroundImage = `url(${headerImageData})`;
+                header.style.backgroundSize = 'cover';
+                header.style.backgroundPosition = 'center';
+                header.style.backgroundRepeat = 'no-repeat';
+            } else {
+                header.style.backgroundImage = 'none';
+            }
+        }
+
+        // Admin login functions
+        function showAdminLogin() {
+            document.getElementById('adminLoginModal').classList.add('active');
+            document.getElementById('loginError').classList.add('hidden');
+        }
+
+        function closeAdminLogin() {
+            document.getElementById('adminLoginModal').classList.remove('active');
+            document.getElementById('adminLoginForm').reset();
+            document.getElementById('loginError').classList.add('hidden');
+        }
+
+        function adminLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            // Demo credentials - in production, this would be handled securely on the server
+            if (username === 'admin' && password === 'beacon2025') {
+                isAdmin = true;
+                localStorage.setItem('beaconAdminSession', 'true');
+                updateAdminUI();
+                closeAdminLogin();
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+
+        function adminLogout() {
+            isAdmin = false;
+            localStorage.removeItem('beaconAdminSession');
+            updateAdminUI();
+        }
+
+        function updateAdminUI() {
+            const adminPanel = document.getElementById('adminPanel');
+            const loginBtn = document.getElementById('adminLoginBtn');
+            const logoutBtn = document.getElementById('adminLogoutBtn');
+            
+            if (isAdmin) {
+                adminPanel.classList.remove('hidden');
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+            } else {
+                adminPanel.classList.add('hidden');
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+            }
+        }
+
+        function checkAdminSession() {
+            const session = localStorage.getItem('beaconAdminSession');
+            if (session === 'true') {
+                isAdmin = true;
+                updateAdminUI();
+            }
+        }
+
+        // Logo upload functions
+        function uploadLogo() {
+            if (!isAdmin) {
+                alert('Please login as admin to upload logo');
+                return;
+            }
+            document.getElementById('logoInput').click();
+        }
+
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                // Validate file type
+                if (!file.type.startsWith('image/')) {
+                    alert('Please select a valid image file (JPG, PNG, GIF, etc.)');
+                    return;
+                }
+                
+                // Validate file size (max 500KB for better cross-device compatibility)
+                if (file.size > 500 * 1024) {
+                    alert('Logo file size should be less than 500KB for optimal performance across all devices. Please compress your image.');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const logoDataUrl = e.target.result;
+                    
+                    // Validate the data URL
+                    if (!logoDataUrl || !logoDataUrl.startsWith('data:image/')) {
+                        alert('Invalid image data. Please try a different image.');
+                        return;
+                    }
+                    
+                    // Create image element to test loading
+                    const testImg = new Image();
+                    testImg.onload = function() {
+                        try {
+                            // Image loaded successfully, save with multiple storage methods
+                            localStorage.setItem('beaconLogo', logoDataUrl);
+                            localStorage.setItem('beacon_logo', logoDataUrl); // Alternative key
+                            localStorage.setItem('companyLogo', logoDataUrl); // Backup key
+                            
+                            // Also save metadata for verification
+                            const logoMetadata = {
+                                timestamp: Date.now(),
+                                size: logoDataUrl.length,
+                                type: file.type,
+                                name: file.name
+                            };
+                            localStorage.setItem('beaconLogoMeta', JSON.stringify(logoMetadata));
+                            
+                            logoData = logoDataUrl;
+                            
+                            // Create and display the logo immediately
+                            displayLogo(logoDataUrl);
+                            
+                            // Verify all storage methods worked
+                            const verification = {
+                                main: localStorage.getItem('beaconLogo') === logoDataUrl,
+                                alt: localStorage.getItem('beacon_logo') === logoDataUrl,
+                                backup: localStorage.getItem('companyLogo') === logoDataUrl
+                            };
+                            
+                            if (verification.main && verification.alt && verification.backup) {
+                                console.log('Logo uploaded and saved successfully with all methods');
+                                alert('Logo uploaded successfully! It will now appear on all devices and browsers.');
+                            } else {
+                                console.warn('Some storage methods failed:', verification);
+                                alert('Logo uploaded but some backup storage failed. It should still work on most devices.');
+                            }
+                        } catch (error) {
+                            console.error('Error saving logo:', error);
+                            alert('Failed to save logo. Your browser may have storage limitations. Please try a smaller image.');
+                        }
+                    };
+                    testImg.onerror = function() {
+                        alert('Failed to load the selected image. Please try a different image format (JPG or PNG recommended).');
+                    };
+                    testImg.src = logoDataUrl;
+                };
+                reader.onerror = function() {
+                    alert('Failed to read the selected file. Please try again.');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Display logo function
+        function displayLogo(logoDataUrl) {
+            const logoImg = document.createElement('img');
+            logoImg.src = logoDataUrl;
+            logoImg.alt = 'Company Logo';
+            logoImg.className = 'w-full h-full object-contain rounded bg-white p-2';
+            logoImg.style.maxWidth = '100%';
+            logoImg.style.maxHeight = '100%';
+            logoImg.style.display = 'block';
+            
+            const logoDisplay = document.getElementById('logoDisplay');
+            logoDisplay.innerHTML = '';
+            logoDisplay.appendChild(logoImg);
+        }
+
+        // Header customization
+        function updateHeaderColor() {
+            headerColorData = document.getElementById('headerColor').value;
+            localStorage.setItem('beaconHeaderColor', headerColorData);
+            updateHeaderStyle();
+        }
+
+        function uploadHeaderImage() {
+            document.getElementById('headerImageInput').click();
+        }
+
+        function handleHeaderImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    headerImageData = e.target.result;
+                    localStorage.setItem('beaconHeaderImage', headerImageData);
+                    updateHeaderStyle();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function resetHeaderImage() {
+            headerImageData = null;
+            localStorage.removeItem('beaconHeaderImage');
+            updateHeaderStyle();
+        }
+
+        function updateTitle() {
+            const title = document.getElementById('titleInput').value;
+            document.getElementById('calendarTitle').textContent = title;
+            localStorage.setItem('beaconTitle', title);
+        }
+
+        // Sport registration URL management
+        function updateSportRegistrationLinks() {
+            const container = document.getElementById('sportRegistrationLinks');
+            container.innerHTML = '';
+            
+            sports.forEach(sport => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-2';
+                div.innerHTML = `
+                    <label class="text-sm font-medium w-24 flex-shrink-0">${sport}:</label>
+                    <input type="url" 
+                           value="${sportRegistrationUrls[sport] || ''}" 
+                           placeholder="Enter registration URL" 
+                           onchange="updateSportRegistrationUrl('${sport}', this.value)"
+                           class="flex-1 px-2 py-1 text-sm border rounded">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateSportRegistrationUrl(sport, url) {
+            sportRegistrationUrls[sport] = url;
+            localStorage.setItem('beaconSportRegistrationUrls', JSON.stringify(sportRegistrationUrls));
+        }
+
+        // Registration functions
+        function openRegistration() {
+            const today = new Date().toISOString().split('T')[0];
+            const todayActivities = activities.filter(activity => {
+                const activityDate = new Date(activity.date);
+                const now = new Date();
+                const activityEndTime = new Date(`${activity.date}T${activity.endTime}`);
+                return activity.date === today && activityEndTime >= now;
+            });
+
+            if (todayActivities.length === 0) {
+                alert('No activities available for registration today.');
+                return;
+            }
+
+            // Get unique sports for today
+            const uniqueSports = [...new Set(todayActivities.map(activity => activity.sport))];
+            
+            if (uniqueSports.length === 1) {
+                // Only one sport, direct registration
+                const sport = uniqueSports[0];
+                const url = sportRegistrationUrls[sport];
+                if (url && url.trim() !== '') {
+                    window.open(url, '_blank');
+                } else {
+                    alert(`Registration form for ${sport} is not available at the moment. Please contact the administrator.`);
+                }
+            } else {
+                // Multiple sports, show selection modal
+                showRegistrationModal(uniqueSports);
+            }
+        }
+
+        function showRegistrationModal(sports) {
+            const modal = document.getElementById('registrationModal');
+            const optionsContainer = document.getElementById('registrationOptions');
+            
+            optionsContainer.innerHTML = '';
+            
+            sports.forEach(sport => {
+                const url = sportRegistrationUrls[sport];
+                const color = sportColors[sport] || '#3b82f6';
+                
+                const button = document.createElement('button');
+                button.className = 'w-full px-4 py-3 text-white rounded-md hover:opacity-90 transition-opacity';
+                button.style.backgroundColor = color;
+                button.innerHTML = `📝 Register for ${sport}`;
+                
+                button.onclick = () => {
+                    if (url && url.trim() !== '') {
+                        window.open(url, '_blank');
+                        closeRegistrationModal();
+                    } else {
+                        alert(`Registration form for ${sport} is not available at the moment. Please contact the administrator.`);
+                    }
+                };
+                
+                optionsContainer.appendChild(button);
+            });
+            
+            modal.classList.add('active');
+        }
+
+        function closeRegistrationModal() {
+            document.getElementById('registrationModal').classList.remove('active');
+        }
+
+        // Sports management
+        function addNewSport() {
+            const newSport = document.getElementById('newSport').value.trim();
+            if (newSport && !sports.includes(newSport)) {
+                sports.push(newSport);
+                localStorage.setItem('beaconSports', JSON.stringify(sports));
+                updateSportsList();
+                updateSportDropdown();
+                updateSportRegistrationLinks();
+                document.getElementById('newSport').value = '';
+                
+                // Assign a random color for new sports
+                if (!sportColors[newSport]) {
+                    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+                    sportColors[newSport] = colors[Math.floor(Math.random() * colors.length)];
+                }
+            }
+        }
+
+        function updateSportsList() {
+            const sportsList = document.getElementById('sportsList');
+            sportsList.innerHTML = sports.map(sport => `<span class="inline-block bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs mr-1 mb-1">${sport}</span>`).join('');
+        }
+
+        function updateSportDropdown() {
+            const dropdown = document.getElementById('sportType');
+            dropdown.innerHTML = '<option value="">Select Sport</option>' + 
+                sports.map(sport => `<option value="${sport}">${sport}</option>`).join('');
+        }
+
+        // Calendar functions
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            // Update month display
+            document.getElementById('currentMonth').textContent = 
+                new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            // Get first day of month and number of days
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            const calendarGrid = document.getElementById('calendarGrid');
+            
+            // Clear existing calendar days (keep headers)
+            const existingDays = calendarGrid.querySelectorAll('.calendar-day');
+            existingDays.forEach(day => day.remove());
+            
+            // Add empty cells for days before month starts
+            for (let i = 0; i < firstDay; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day bg-gray-50';
+                calendarGrid.appendChild(emptyDay);
+            }
+            
+            // Add days of the month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const dayActivities = activities.filter(activity => activity.date === dateStr);
+                const today = new Date();
+                const cellDate = new Date(year, month, day);
+                
+                // Create day element
+                const dayElement = document.createElement('div');
+                const hasActivity = dayActivities.length > 0;
+                dayElement.className = `calendar-day bg-white hover:bg-gray-50 cursor-pointer p-2 ${hasActivity ? 'has-activity' : ''}`;
+                
+                let dayContent = `<div class="font-medium text-sm mb-2">${day}</div>`;
+                
+                if (dayActivities.length > 0) {
+                    dayContent += '<div class="calendar-horizontal">';
+                    dayActivities.forEach(activity => {
+                        const now = new Date();
+                        const activityEndTime = new Date(`${activity.date}T${activity.endTime}`);
+                        const isPast = activityEndTime < now;
+                        const color = sportColors[activity.sport] || '#3b82f6';
+                        const activityClass = isPast ? 'opacity-50' : '';
+                        dayContent += `<div class="activity-item ${activityClass}" style="border-left-color: ${color}" title="${activity.sport} - ${activity.time}">
+                            ${activity.sport}
+                        </div>`;
+                    });
+                    dayContent += '</div>';
+                }
+                
+                dayElement.innerHTML = dayContent;
+                dayElement.onclick = () => showDayActivities(dateStr);
+                calendarGrid.appendChild(dayElement);
+            }
+        }
+
+        function previousMonth() {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+            renderCalendar();
+        }
+
+        // Activity management
+        function openActivityModal() {
+            if (!isAdmin) {
+                alert('Please login as admin to add activities');
+                return;
+            }
+            document.getElementById('activityModal').classList.add('active');
+            document.getElementById('activityDate').value = new Date().toISOString().split('T')[0];
+        }
+
+        function closeActivityModal() {
+            document.getElementById('activityModal').classList.remove('active');
+            document.getElementById('activityForm').reset();
+        }
+
+        // Convert 24-hour time to 12-hour format
+        function formatTime12Hour(time24) {
+            const [hours, minutes] = time24.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const hour12 = hour % 12 || 12;
+            return `${hour12}:${minutes} ${ampm}`;
+        }
+
+        function addActivity(event) {
+            event.preventDefault();
+            
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            
+            const activity = {
+                id: Date.now(),
+                sport: document.getElementById('sportType').value,
+                date: document.getElementById('activityDate').value,
+                startTime: startTime,
+                endTime: endTime,
+                location: document.getElementById('location').value,
+                court: document.getElementById('court').value,
+                time: `${formatTime12Hour(startTime)} - ${formatTime12Hour(endTime)}`
+            };
+            
+            activities.push(activity);
+            localStorage.setItem('beaconActivities', JSON.stringify(activities));
+            
+            closeActivityModal();
+            renderCalendar();
+            updateTodayActivities();
+        }
+
+        // Get week start and end dates
+        function getWeekRange(dateStr) {
+            const date = new Date(dateStr);
+            const day = date.getDay();
+            const startOfWeek = new Date(date);
+            startOfWeek.setDate(date.getDate() - day);
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            return { start: startOfWeek, end: endOfWeek };
+        }
+
+        function showDayActivities(dateStr) {
+            const selectedDate = new Date(dateStr);
+            const today = new Date();
+            const detailsDiv = document.getElementById('todayActivities');
+            
+            // Check if clicked date has activities
+            const dayActivities = activities.filter(activity => activity.date === dateStr);
+            
+            if (dayActivities.length > 0) {
+                // Show day activities if the date has activities
+                document.getElementById('activitySectionTitle').textContent = `Activities for ${selectedDate.toLocaleDateString()}`;
+                
+                // Sort activities by start time
+                const sortedActivities = dayActivities.sort((a, b) => a.startTime.localeCompare(b.startTime));
+                
+                detailsDiv.innerHTML = `
+                    ${sortedActivities.map(activity => {
+                        const now = new Date();
+                        const activityEndTime = new Date(`${activity.date}T${activity.endTime}`);
+                        const isPast = activityEndTime < now;
+                        const color = sportColors[activity.sport] || '#3b82f6';
+                        const hasRegistrationUrl = sportRegistrationUrls[activity.sport] && sportRegistrationUrls[activity.sport].trim() !== '';
+                        
+                        return `
+                            <div class="border-2 rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow ${isPast ? 'opacity-60 bg-gray-100' : 'bg-white border-blue-100'}" style="border-left: 6px solid ${color}">
+                                <div class="flex justify-between items-start">
+                                    <div class="flex-1">
+                                        <h5 class="font-bold text-xl text-gray-900 mb-3">${activity.sport}</h5>
+                                        <p class="text-gray-800 text-lg mb-2">⏰ ${activity.time}</p>
+                                        <p class="text-gray-800 text-lg mb-2">📍 ${activity.location}</p>
+                                        <p class="text-gray-800 text-lg mb-2">🏟️ Court: ${activity.court}</p>
+                                        ${isPast ? '<span class="text-sm text-gray-600 font-semibold bg-gray-200 px-3 py-1 rounded-full">PAST EVENT</span>' : ''}
+                                    </div>
+                                    ${isAdmin ? `<button onclick="deleteActivity(${activity.id})" class="text-red-600 hover:text-red-800 ml-4 p-3 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                `;
+            } else {
+                // Show week activities if the date has no activities
+                showWeekActivities(dateStr);
+            }
+        }
+
+        function showWeekActivities(dateStr) {
+            const { start, end } = getWeekRange(dateStr);
+            const detailsDiv = document.getElementById('todayActivities');
+            
+            // Get all activities for the week
+            const weekActivities = activities.filter(activity => {
+                const activityDate = new Date(activity.date);
+                return activityDate >= start && activityDate <= end;
+            });
+            
+            if (weekActivities.length === 0) {
+                detailsDiv.innerHTML = `<div class="text-center py-8">
+                    <p class="text-gray-700 text-lg font-medium">No activities scheduled for the week of ${start.toLocaleDateString()} - ${end.toLocaleDateString()}.</p>
+                    <p class="text-gray-600 mt-2">Check back later for updates!</p>
+                </div>`;
+                return;
+            }
+            
+            // Group activities by date
+            const groupedActivities = {};
+            weekActivities.forEach(activity => {
+                if (!groupedActivities[activity.date]) {
+                    groupedActivities[activity.date] = [];
+                }
+                groupedActivities[activity.date].push(activity);
+            });
+            
+            // Sort dates
+            const sortedDates = Object.keys(groupedActivities).sort();
+            const today = new Date();
+            
+            document.getElementById('activitySectionTitle').textContent = `Week Activities (${start.toLocaleDateString()} - ${end.toLocaleDateString()})`;
+            detailsDiv.innerHTML = `
+                ${sortedDates.map(date => {
+                    const dateObj = new Date(date);
+                    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                    const dayActivities = groupedActivities[date];
+                    
+                    return `
+                        <div class="mb-6">
+                            <h5 class="font-bold text-xl text-gray-900 mb-4 border-b-2 border-blue-200 pb-2">${dayName}, ${dateObj.toLocaleDateString()}</h5>
+                            <div class="space-y-3 ml-4">
+                                ${dayActivities.sort((a, b) => a.startTime.localeCompare(b.startTime)).map(activity => {
+                                    const now = new Date();
+                                    const activityEndTime = new Date(`${activity.date}T${activity.endTime}`);
+                                    const isPast = activityEndTime < now;
+                                    const color = sportColors[activity.sport] || '#3b82f6';
+                                    const hasRegistrationUrl = sportRegistrationUrls[activity.sport] && sportRegistrationUrls[activity.sport].trim() !== '';
+                                    
+                                    return `
+                                        <div class="border-2 rounded-xl p-4 shadow-md hover:shadow-lg transition-all ${isPast ? 'opacity-60 bg-gray-100' : 'bg-white border-blue-100'} cursor-pointer" 
+                                             style="border-left: 6px solid ${color}" 
+                                             onclick="showDayActivities('${date}')">
+                                            <div class="flex justify-between items-start">
+                                                <div class="flex-1">
+                                                    <h6 class="font-bold text-lg text-gray-900 mb-2">${activity.sport}</h6>
+                                                    <p class="text-gray-800 mb-1">⏰ ${activity.time}</p>
+                                                    <p class="text-gray-800 mb-1">📍 ${activity.location} - Court: ${activity.court}</p>
+                                                    ${isPast ? '<span class="text-xs text-gray-600 font-semibold bg-gray-200 px-2 py-1 rounded-full">PAST EVENT</span>' : ''}
+                                                </div>
+                                                ${isAdmin ? `<button onclick="event.stopPropagation(); deleteActivity(${activity.id})" class="text-red-600 hover:text-red-800 ml-2 p-2 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>` : ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            `;
+        }
+
+        function updateTodayActivities() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('activitySectionTitle').textContent = "Today's Activities";
+            showDayActivities(today);
+        }
+
+        function deleteActivity(id) {
+            if (!isAdmin) {
+                alert('Please login as admin to delete activities');
+                return;
+            }
+            
+            if (confirm('Are you sure you want to delete this activity?')) {
+                activities = activities.filter(activity => activity.id !== id);
+                localStorage.setItem('beaconActivities', JSON.stringify(activities));
+                renderCalendar();
+                updateTodayActivities();
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('activityModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeActivityModal();
+            }
+        });
+
+        document.getElementById('adminLoginModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeAdminLogin();
+            }
+        });
+
+        document.getElementById('registrationModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeRegistrationModal();
+            }
+        });
+
+        // Initialize the application
+        init();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9753f1c2856d13e3',t:'MTc1NjIxNzc2NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
